@@ -1,69 +1,93 @@
 # ternary-compass
 
-**Navigation in ternary state space. Which direction is better? Follow the gradient.**
+**Orientation and direction in ternary state space**
 
-A compass doesn't tell you where you are — it tells you which direction is north. In ternary state space, the compass tells you which direction improves fitness. If your current state is 0 (neutral) and +1 is better, the compass points toward +1. If -1 is better, it points toward -1. If you're already at the optimum, it points nowhere (0 — stay put).
+[![ternary](https://img.shields.io/badge/ecosystem-ternary-blue)](https://github.com/orgs/SuperInstance/repositories?q=ternary)
+[![tests](https://img.shields.io/badge/tests-27-green)]()
 
-This crate implements gradient-based navigation through ternary strategy spaces: compute the fitness gradient, follow it to a local optimum, detect when you've arrived, and navigate around barriers when the gradient is flat.
+## Overview
 
-## What's Inside
+Orientation and direction in ternary state space.
 
-- **`Compass`** — points toward fitness improvement in ternary state space
-- **`gradient(current_state, fitness_fn)`** — compute which ternary direction improves fitness
-- **`follow(state, gradient, step_size)`** — take a step in the gradient direction
-- **`navigate(state, fitness_fn, max_steps)`** — follow the gradient until convergence
-- **`is_local_optimum(state, fitness_fn)`** — no neighbor has higher fitness?
-- **`gradient_landscape(states, fitness_fn)`** — compute gradients for the entire state space
-- **`barrier_detect(state, fitness_fn)`** — detect flat regions where the gradient is zero but it's not an optimum
+Provides navigational metaphors for understanding position and movement
+within ternary {-1, 0, +1} state spaces: compass bearings, gyroscopic
+stabilization, angular measurement, heading estimation, and anomaly detection.
 
-## Quick Example
+## Architecture
 
-```rust
-use ternary_compass::*;
+- **`Compass`** — core data structure
+- **`Gyroscope`** — core data structure
+- **`Sextant`** — core data structure
+- **`HeadingEstimator`** — core data structure
+- **`CompassRose`** — core data structure
+- **`MagneticAnomaly`** — core data structure
+- **`AnomalyDetector`** — core data structure
+- **`Ternary`** — state enumeration
+- **`Bearing`** — state enumeration
+- **`TernaryDirection`** — state enumeration
+- **`AnomalyKind`** — state enumeration
 
-// Fitness function: +1 is optimal
-let fitness = |s: i8| -> f64 { s as f64 };
+### Key Functions
 
-// Start at 0
-let mut state = 0;
-let path = navigate(state, &fitness, 10);
-// 0 → +1 (followed gradient toward higher fitness)
+- `value()`
+- `from_value()`
+- `from_delta()`
+- `to_angle()`
+- `new()`
+- `update()`
+- `bearing()`
+- `confidence()`
+- `reset()`
+- `new()`
+- ... and 20 more
 
-// Check if we've arrived
-assert!(is_local_optimum(1, &fitness));
-// +1 is a local (and global) optimum
+## Why Ternary?
 
-// Barrier detection: fitness is flat between -1 and 0
-let flat_fitness = |s: i8| -> f64 { if s == 1 { 1.0 } else { 0.0 } };
-let barriers = barrier_detect(0, &flat_fitness);
-// Flat region detected: -1 and 0 have the same fitness
+The balanced ternary system {-1, 0, +1} (also known as Z₃) is the mathematically optimal discrete encoding:
+- **More expressive than binary**: three states capture positive, neutral, and negative
+- **Natural for decisions**: accept/reject/abstain, buy/hold/sell, agree/disagree/neutral
+- **Self-balancing**: the 0 state acts as a universal screen, preventing pathological lock-in
+- **Z₃ cyclic dynamics**: rock-paper-scissors is the only natural coordination mechanism
+
+## Stats
+
+| Metric | Value |
+|--------|-------|
+| Lines of Rust | 778 |
+| Test count | 27 |
+| Public types | 11 |
+| Public functions | 30 |
+
+## Ecosystem
+
+This crate is part of the **[SuperInstance Ternary Fleet](https://github.com/orgs/SuperInstance/repositories?q=ternary)**:
+
+- **[ternary-core](https://github.com/SuperInstance/ternary-core)** — shared traits and Z₃ arithmetic
+- **[ternary-grid](https://github.com/SuperInstance/ternary-grid)** — spatial grid with {-1, 0, +1} cells
+- **[ternary-graph](https://github.com/SuperInstance/ternary-graph)** — ternary-weighted graph algorithms
+- **[ternary-automata](https://github.com/SuperInstance/ternary-automata)** — three-state cellular automata
+- **[ternary-compiler](https://github.com/SuperInstance/ternary-compiler)** — expression compiler and optimizer
+
+200+ crates. 4,300+ tests. One pattern.
+
+## Research Context
+
+The ternary approach connects to several active research areas:
+- **Ternary Neural Networks** (TNNs): weights constrained to {-1, 0, +1} for efficient inference
+- **Huawei's ternary chip**: 7nm ternary silicon with 60% less power consumption
+- **Active inference**: free energy minimization naturally maps to ternary action selection
+- **Cyclic dominance**: RPS dynamics maintain biodiversity in spatial ecology
+- **Z₃ group theory**: the only algebraic group on three elements is cyclic addition mod 3
+
+## Usage
+
+```toml
+[dependencies]
+ternary-compass = "0.1.0"
 ```
 
-## The Deeper Truth
-
-**Ternary gradients are the simplest possible optimization.** In continuous space, gradient descent follows a smooth curve toward the optimum. In ternary, there are only three directions: toward -1, stay at 0, or toward +1. The gradient is a single ternary value — the direction of steepest ascent. Navigation is a sequence of ternary decisions: at each step, which of the three states is better?
-
-This simplicity is deceptive. In multi-dimensional ternary spaces (where each agent has N ternary variables), the gradient landscape becomes complex: local optima, saddle points, and flat regions abound. The compass still works — it just might get stuck in local optima. Escaping local optima requires perturbation (random jumps) or momentum (remembering previous directions) — both of which connect to the genetic algorithm (ternary-ga) and simulated annealing approaches.
-
-**Use cases:**
-- **Strategy optimization** — find the best ternary strategy by following fitness gradients
-- **Navigation** — guide agents through ternary state spaces
-- **Landscape analysis** — map the gradient structure of fitness landscapes
-- **Education** — the simplest possible optimization algorithm
-- **Agent coordination** — agents follow gradients toward consensus
-
-## See Also
-
-- **ternary-fitness** — the landscapes being navigated
-- **ternary-ga** — genetic algorithms (gradient-free optimization)
-- **ternary-navigator** — higher-level navigation with path planning
-- **ternary-gradient** — gradient computation in multi-dimensional ternary spaces
-- **ternary-topology** — topological analysis of gradient landscapes
-
-## Install
-
-```bash
-cargo add ternary-compass
+```rust
+use ternary_compass;
 ```
 
 ## License
