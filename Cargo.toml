@@ -1,0 +1,11 @@
+[package]
+name = "ternary-compass"
+version = "0.1.0"
+edition = "2021"
+description = "Orientation and direction in ternary state space — compass, gyroscope, sextant, heading estimation"
+license = "MIT"
+repository = "https://github.com/SuperInstance/ternary-compass"
+keywords = ["ternary", "compass", "orientation", "direction", "navigation"]
+categories = ["algorithms", "mathematics", "science"]
+
+[dev-dependencies]
