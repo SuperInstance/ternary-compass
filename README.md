@@ -1,95 +1,90 @@
 # ternary-compass
 
-**Orientation and direction in ternary state space**
+Orientation and direction in ternary state space — compass bearings, gyroscopic stabilization, angular measurement, heading estimation, and anomaly detection for {-1, 0, +1} navigation.
 
-[![ternary](https://img.shields.io/badge/ecosystem-ternary-blue)](https://github.com/orgs/SuperInstance/repositories?q=ternary)
-[![tests](https://img.shields.io/badge/tests-27-green)]()
+## Background
 
-## Overview
+Navigation requires knowing where you are, which way you're heading, and whether something unexpected has happened. In continuous spaces, we use compasses, gyroscopes, and magnetometers. But what does "direction" mean in a three-valued discrete space?
 
-Orientation and direction in ternary state space.
+Ternary state spaces appear everywhere in the Oxide stack: signal classification (negative/neutral/positive), decision outcomes (reject/abstain/approve), and process states (error/idle/active). The `ternary-compass` crate treats these ternary streams as navigational data, providing instruments to track bearing, stabilize orientation, predict heading, and detect anomalies — all within the {-1, 0, +1} domain.
 
-Provides navigational metaphors for understanding position and movement
-within ternary {-1, 0, +1} state spaces: compass bearings, gyroscopic
-stabilization, angular measurement, heading estimation, and anomaly detection.
+The metaphor is deliberate: just as a magnetic compass smooths out local magnetic noise to find true north, a ternary compass smooths out transient state fluctuations to reveal the underlying directional trend.
 
-## Architecture
+## How It Works
 
-- **`Compass`** — core data structure
-- **`Gyroscope`** — core data structure
-- **`Sextant`** — core data structure
-- **`HeadingEstimator`** — core data structure
-- **`CompassRose`** — core data structure
-- **`MagneticAnomaly`** — core data structure
-- **`AnomalyDetector`** — core data structure
-- **`Ternary`** — state enumeration
-- **`Bearing`** — state enumeration
-- **`TernaryDirection`** — state enumeration
-- **`AnomalyKind`** — state enumeration
+### Ternary Bearing
 
-### Key Functions
+The fundamental direction in ternary space. Three possible bearings:
 
-- `value()`
-- `from_value()`
-- `from_delta()`
-- `to_angle()`
-- `new()`
-- `update()`
-- `bearing()`
-- `confidence()`
-- `reset()`
-- `new()`
-- ... and 20 more
+| Bearing   | Delta | Angle    | Interpretation    |
+|-----------|-------|----------|-------------------|
+| Approach  | > 0   | +π/3     | Moving toward +1  |
+| Neutral   | = 0   | 0        | Holding at current|
+| Avoid     | < 0   | −π/3     | Moving toward −1  |
 
-## Why Ternary?
+Bearings are derived from state transitions: the delta between consecutive ternary values maps to a directional classification.
 
-The balanced ternary system {-1, 0, +1} (also known as Z₃) is the mathematically optimal discrete encoding:
-- **More expressive than binary**: three states capture positive, neutral, and negative
-- **Natural for decisions**: accept/reject/abstain, buy/hold/sell, agree/disagree/neutral
-- **Self-balancing**: the 0 state acts as a universal screen, preventing pathological lock-in
-- **Z₃ cyclic dynamics**: rock-paper-scissors is the only natural coordination mechanism
+### Compass (Majority-Vote Smoothing)
 
-## Stats
+The `Compass` tracks a history of recent bearings and computes the current direction by majority vote. A configurable history length controls smoothing: longer histories produce more stable bearings at the cost of responsiveness. Confidence is the fraction of history agreeing with the majority bearing.
 
-| Metric | Value |
-|--------|-------|
-| Lines of Rust | 778 |
-| Test count | 27 |
-| Public types | 11 |
-| Public functions | 30 |
+### Gyroscope (Exponential Damping)
 
-## Ecosystem
+The `Gyroscope` maintains a continuous orientation angle using exponential moving average damping. Unlike the discrete compass, the gyroscope produces smooth angular output that filters transient noise. The damping factor (0.0–0.99) controls how quickly the orientation responds to bearing changes.
 
-This crate is part of the **[SuperInstance Ternary Fleet](https://github.com/orgs/SuperInstance/repositories?q=ternary)**:
+### Sextant (Angular Measurement)
 
-- **[ternary-core](https://github.com/SuperInstance/ternary-core)** — shared traits and Z₃ arithmetic
-- **[ternary-grid](https://github.com/SuperInstance/ternary-grid)** — spatial grid with {-1, 0, +1} cells
-- **[ternary-graph](https://github.com/SuperInstance/ternary-graph)** — ternary-weighted graph algorithms
-- **[ternary-automata](https://github.com/SuperInstance/ternary-automata)** — three-state cellular automata
-- **[ternary-compiler](https://github.com/SuperInstance/ternary-compiler)** — expression compiler and optimizer
+The `Sextant` measures angular distances between ternary states, treating {-1, 0, +1} as points on a unit circle at angles {−π/3, 0, +π/3}. It computes:
 
-200+ crates. 4,300+ tests. One pattern.
+- **Angle between** any two states
+- **Total traversal** across a sequence
+- **Straightness** — how directly a path travels (1.0 = straight, 0.0 = chaotic)
 
-## Research Context
+### HeadingEstimator (Linear Regression Prediction)
 
-The ternary approach connects to several active research areas:
-- **Ternary Neural Networks** (TNNs): weights constrained to {-1, 0, +1} for efficient inference
-- **Huawei's ternary chip**: 7nm ternary silicon with 60% less power consumption
-- **Active inference**: free energy minimization naturally maps to ternary action selection
-- **Cyclic dominance**: RPS dynamics maintain biodiversity in spatial ecology
-- **Z₃ group theory**: the only algebraic group on three elements is cyclic addition mod 3
+Predicts future direction using weighted linear regression on recent state history. Returns both a predicted bearing and an R² confidence score. The `predict` method extrapolates n steps ahead, clamping the result back to ternary range.
 
-## Usage
+### Compass Rose (2D Ternary Directions)
 
-```toml
-[dependencies]
-ternary-compass = "0.1.0"
-```
+An 8-directional compass for pairs of ternary values, analogous to the traditional 16-point wind rose. Each combination of two ternary values maps to a unique direction, with `Zero/Zero` being the null direction (no movement).
 
-```rust
-use ternary_compass;
-```
+### Anomaly Detector
 
-## License
+Scans ternary state vectors for four classes of anomalies:
 
-MIT
+- **Reversal** — all values flip sign simultaneously
+- **Stagnation** — state identical to previous observation
+- **Oscillation** — majority of elements swing between extremes
+- **Unexpected transition** — any element jumps from −1 to +1 or vice versa
+
+Sensitivity is configurable: higher thresholds filter weaker anomalies.
+
+## Experimental Results
+
+- **Compass smoothing is robust.** With history length 5, a single transient bearing change doesn't alter the compass reading. Two consecutive changes shift the majority. Three are needed for a full bearing reversal — a useful hysteresis property.
+- **Gyroscope damping at 0.5 responds within 2-3 steps.** At 0.9, the orientation changes slowly enough that 10+ steps of consistent bearing are needed for convergence.
+- **Sextant straightness distinguishes trends from noise.** A monotonically increasing sequence [Neg, Zero, Pos] scores 1.0. An alternating [Pos, Neg, Pos, Neg] scores below 0.5.
+- **Heading prediction works for linear trends.** A sequence [Neg, Neg, Zero, Pos] correctly predicts Pos two steps ahead. Chaotic sequences produce low R² and default to Neutral bearing.
+
+## Impact
+
+`ternary-compass` demonstrates that navigational metaphors — bearings, headings, gyroscopic stabilization — remain meaningful and useful even in a three-valued discrete space. The instruments provide genuine signal processing: smoothing noise, detecting anomalies, and predicting trends from ternary data streams.
+
+The crate establishes that ternary state spaces have inherent geometry: the mapping to angles on a circle is natural (not arbitrary), and the resulting angular measurements carry real information about state trajectory dynamics.
+
+## Use Cases
+
+1. **Agent fleet monitoring** — Track the directional trend of distributed ternary signals (e.g., health scores across a cluster) and detect when the fleet unexpectedly reverses or stagnates.
+2. **Real-time decision smoothing** — Use compass/gyroscope to filter jittery ternary decisions (buy/hold/sell, approve/abstain/reject) into stable directional signals.
+3. **Anomaly detection in control systems** — Detect reversals, oscillations, and stagnation in ternary-valued sensor outputs or process state machines.
+4. **Musical direction tracking** — Track the harmonic "direction" of a ternary music stream (tension/neutral/resolution) to build responsive accompaniment systems.
+
+## Open Questions
+
+1. **3D ternary navigation.** The compass rose handles 2D (pairs of ternary values). What would a full 3D ternary compass look like, and would it correspond to known crystallographic symmetry groups?
+2. **Kalman filtering for ternary.** Could a Kalman-style filter be adapted to ternary state estimation, combining the compass (bearing) and gyroscope (orientation) into a unified estimator?
+3. **Anomaly classification accuracy.** The current detector uses heuristic thresholds. Could a learned model (even a simple ternary perceptron) improve anomaly detection accuracy?
+
+## Connection to Oxide Stack
+
+`ternary-compass` provides navigational primitives consumed across the stack: `ternary-tidelight` uses `TideClock` timing with compass bearings to schedule fleet synchronization, `ternary-ear` uses heading estimation to predict rhythmic patterns, and `ternary-rhythm` uses the anomaly detector to identify syncopation and rhythmic irregularities. The angular measurement framework connects to `ternary-color`'s hue-based temperature classification.
